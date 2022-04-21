@@ -8,12 +8,16 @@ import json
 import re
 import os
 
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
+
 '''
 需要下载的库
 requests
 '''
 
-rootPath = '/home/aimerneige/spider/duitang/'
+rootPath = '/Users/hason/Downloads/lijiaxin/'
 
 
 def getJsonBySearch(keyword:str, limit:int, start:int) -> str:
@@ -24,7 +28,7 @@ def getJsonBySearch(keyword:str, limit:int, start:int) -> str:
     :param start:   从何处开始访问数据（索引）
     :return str:    json数据
     """
-    url = "https://www.duitang.com/napi/blog/list/by_search/?kw=%s&type=feed&limit=%d&start=%d" % (keyword, limit, start)
+    url = "https://www.duitang.com/napi/blog/list/by_search/?kw=%s&type=feed&limit=%s&start=%s" % (keyword, limit, start)
     response = requests.get(url)
     if response.status_code != 200:
         print("Request failed!")
@@ -42,7 +46,7 @@ def getJsonByAlbum(album_id:str, limit:int, start:int) -> str:
     :param start:    从何处开始访问数据（索引）
     :return str:     json数据
     """
-    url = "https://www.duitang.com/napi/blog/list/by_album/?album_id=%s&limit=%d&start=%d" % (album_id, limit, start)
+    url = "https://www.duitang.com/napi/blog/list/by_album/?album_id=%s&limit=%s&start=%s" % (album_id, limit, start)
     response = requests.get(url)
     if response.status_code != 200:
         print("Request failed!")
@@ -82,7 +86,7 @@ def download(url, path, name):
     print("文件大小：%.2f Mb" % (filesize/1024/1024))
 
 
-def spider(value:str, getAll:str, minSize:int, withId:str):
+def spider(value:str, getAll:str, minSize:int, withId:str, next_start:int):
     allFlag = False
     if getAll == "y" or getAll == "Y" or getAll == "yes" or getAll == "Yes":
         allFlag = True
@@ -90,7 +94,6 @@ def spider(value:str, getAll:str, minSize:int, withId:str):
         limit = 100
     else:
         limit = input("你想要每次爬取多少张图片？（最大100）\n")
-    next_start = 0
     while True:
         idFlag = False
         if withId == "y":
@@ -100,6 +103,7 @@ def spider(value:str, getAll:str, minSize:int, withId:str):
         else:
             jsonData = getJsonBySearch(value, limit, next_start)
         jsonItem = json.loads(jsonData)
+        print('------jsonItem--------')
         if jsonItem['status'] != 1:
             print("无法获取数据！这些信息可能会帮到你：\n%s" % jsonItem)
             exit()
@@ -107,9 +111,12 @@ def spider(value:str, getAll:str, minSize:int, withId:str):
             data = jsonItem['data']
             next_start = data['next_start']
             objectList = data['object_list']
+            print('----------list------------')
             for objectItem in objectList:
+                print('----------for------------')
                 photo = objectItem['photo']
                 size = int(photo['size'])
+                print(size < minSize )
                 if size < minSize:
                     continue
                 url = photo['path']
@@ -156,7 +163,10 @@ def main():
     getAll = input("是否自动爬取全部图片 Y/N\n")
     minSize = int(input("输入被过滤图片的大小，小于该数值则不会下载（整数、单位kb）\n"))
     minSize = minSize * 1024
-    spider(value, getAll, minSize, withId)
+
+    next_start = int(input("输入开始位置(因为单次最多下载100个所以分次下载)\n"))
+
+    spider(value, getAll, minSize, withId, next_start)
 
 if __name__ == "__main__":
     main()
